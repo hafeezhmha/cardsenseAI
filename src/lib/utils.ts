@@ -1,5 +1,4 @@
-import { ChatGPTMessage } from "@/types";
-import { Message } from "ai";
+import { Message } from "ai-stream-experimental/react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -47,7 +46,7 @@ export const initialMessages: Message[] = [
     role: "assistant",
     id: "0",
     content:
-      "Hi! I am your Credit Card assistant. I am happy to help with your questions about your PDF.",
+      "Hi there! 👋 I'm CardSense AI, your personal assistant for credit cards. How can I help you today?",
   },
 ];
 

@@ -16,58 +16,86 @@ type callChainArgs = {
 
 export async function callChain({ question, chatHistory }: callChainArgs) {
   try {
-    // Open AI recommendation
+    console.log("callChain: Sanitizing question...");
     const sanitizedQuestion = question.trim().replaceAll("\n", " ");
-    const pineconeClient = await getPineconeClient();
-    const vectorStore = await getVectorStore(pineconeClient);
-    const { stream, handlers } = LangChainStream({
-      experimental_streamData: true,
-    });
-    const data = new experimental_StreamData();
+    console.log(`callChain: Sanitized question: ${sanitizedQuestion}`);
 
+    console.log("callChain: Initializing Pinecone client...");
+    const pineconeClient = await getPineconeClient();
+    console.log("callChain: Pinecone client initialized.");
+
+    console.log("callChain: Getting vector store...");
+    const vectorStore = await getVectorStore(pineconeClient);
+    console.log("callChain: Vector store retrieved.");
+    
+    console.log("callChain: Creating ConversationalRetrievalQAChain...");
     const chain = ConversationalRetrievalQAChain.fromLLM(
       streamingModel,
-      vectorStore.asRetriever() as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vectorStore.asRetriever({ k: 2 }) as any,
       {
         qaTemplate: QA_TEMPLATE,
         questionGeneratorTemplate: STANDALONE_QUESTION_TEMPLATE,
-        returnSourceDocuments: true, //default 4
+        returnSourceDocuments: true,
         questionGeneratorChainOptions: {
           llm: nonStreamingModel,
         },
+        verbose: true,
       }
     );
+    console.log("callChain: ConversationalRetrievalQAChain created.");
 
-    // Question using chat-history
-    // Reference https://js.langchain.com/docs/modules/chains/popular/chat_vector_db#externally-managed-memory
-    chain
-      .call(
-        {
-          question: sanitizedQuestion,
-          chat_history: chatHistory,
-        },
-        [handlers]
-      )
-      .then(async (res) => {
-        const sourceDocuments = res?.sourceDocuments;
-        const firstTwoDocuments = sourceDocuments.slice(0, 2);
-        const sources = firstTwoDocuments.map(
-          (doc: { pageContent: string; metadata: Record<string, any> }) => ({
-            content: doc.pageContent,
-            url: doc.metadata?.sourceURL || doc.metadata?.source || null,
-          })
-        );
-        console.log("Processed sources with URLs: ", sources);
-        data.append({
-          sources: sources,
-        });
-        data.close();
-      });
+    console.log("callChain: Calling chain with question and chat history...");
+    const res = await chain.call({
+      question: sanitizedQuestion,
+      chat_history: chatHistory,
+    });
+    console.log("callChain: Chain call successful. Processing response...");
 
-    // Return the readable stream
-    return new StreamingTextResponse(stream, {}, data);
+    const responseText = res.text;
+    interface Source {
+      content: string;
+      url: string | null;
+    }
+    let sources: Source[] = [];
+
+    if (res?.sourceDocuments && res.sourceDocuments.length > 0) {
+      const sourceDocument = res.sourceDocuments[0];
+      console.log(`callChain: Source document: ${JSON.stringify(sourceDocument)}`);
+      sources = [{
+        content: sourceDocument.pageContent,
+        url: sourceDocument.metadata?.sourceURL || sourceDocument.metadata?.source || null,
+      }];
+      console.log(`callChain: Processed sources: ${JSON.stringify(sources)}`);
+    }
+
+    // Construct a non-streaming response manually
+    // The `ai` package's `useChat` hook expects a stream, even for non-streaming full responses.
+    // We can simulate a stream that emits the full response at once.
+    const data = new experimental_StreamData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data.append({ sources: sources as any }); // Append sources if you have them
+    data.close();
+
+    // Create a ReadableStream that sends the whole response text at once
+    const readableStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(responseText));
+        controller.close();
+      },
+    });
+    
+    console.log("callChain: Returning new Response with simulated stream.");
+    return new Response(readableStream, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+
   } catch (e) {
-    console.error(e);
-    throw new Error("Call chain method failed to execute successfully!!");
+    console.error("callChain: Unhandled error in callChain:", e);
+    // Ensure a response is sent even in case of an error to prevent hanging
+    return new Response(JSON.stringify({ error: "Call chain method failed to execute successfully!!", message: (e as Error).message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

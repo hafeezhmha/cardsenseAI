@@ -14,6 +14,7 @@ Built with:
 Create a free account and get an OPEN_AI key from platform.openai.com
 Create a free account and get access to PineconeDB
 And populate your .env file with the required information.
+Make sure to set the `DATA_DIRECTORIES` environment variable in your `.env` file. This should be a comma-separated list of paths to the directories containing your source JSON files (e.g., `DATA_DIRECTORIES=axis,hdfc,icici`).
 
 💬 Good to know
 
@@ -27,7 +28,7 @@ All commands are run from the root of the project, from a terminal:
 | Command | Action |
 |---|---|
 | npm install | Installs dependencies |
-| npm run prepare:data | Splits your PDF file under the /docs folder into chunks, embeds them, uploads them to Pinecone |
+| npm run prepare:data | Scans directories specified in `DATA_DIRECTORIES`, processes JSON files, splits them into chunks, embeds them, and uploads them to Pinecone. |
 | npm run dev | Starts the local dev server at localhost:3000 |
 
 🚸 Roadmap

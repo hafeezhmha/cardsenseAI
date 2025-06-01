@@ -7,7 +7,9 @@ const envSchema = z.object({
   PINECONE_ENVIRONMENT: z.string().trim().min(1),
   PINECONE_INDEX_NAME: z.string().trim().min(1),
   PINECONE_NAMESPACE: z.string().trim().optional(),
-  PDF_PATH: z.string().trim().min(1),
+  DATA_DIRECTORIES: z.string().trim().min(1),
+  PDF_PATH: z.string().trim().min(1).optional(),
+  JSON_PATH: z.string().trim().min(1).optional(),
   DATA_SOURCE_URL: z.string().trim().optional(),
   INDEX_INIT_TIMEOUT: z.coerce.number().min(1),
 });

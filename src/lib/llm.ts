@@ -2,12 +2,12 @@ import { ChatOpenAI } from "@langchain/openai";
 import { env } from "./config";
 
 export const streamingModel = new ChatOpenAI({
-  modelName: "mistralai/mistral-7b-instruct-v0.3",
-  streaming: true,
+  modelName: "mistralai/mistral-7b-instruct:free",
+  streaming: false,
   verbose: true,
   temperature: 0,
   openAIApiKey: env.OPENROUTER_API_KEY,
-  maxTokens: 2048,
+  maxTokens: 1024,
   modelKwargs: { 
     "tiktoken_model_name": "gpt-3.5-turbo",
   },
@@ -15,17 +15,17 @@ export const streamingModel = new ChatOpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     defaultHeaders: {
       "HTTP-Referer": "https://localhost:3000",
-      "X-Title": "Credit Card Bot",
+      "X-Title": "CardSense AI",
     },
   },
 });
 
 export const nonStreamingModel = new ChatOpenAI({
-  modelName: "mistralai/mistral-7b-instruct-v0.3",
+  modelName: "mistralai/mistral-7b-instruct:free",
   verbose: true,
   temperature: 0,
   openAIApiKey: env.OPENROUTER_API_KEY,
-  maxTokens: 2048,
+  maxTokens: 512,
   modelKwargs: { 
     "tiktoken_model_name": "gpt-3.5-turbo",
   },
@@ -33,7 +33,7 @@ export const nonStreamingModel = new ChatOpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     defaultHeaders: {
       "HTTP-Referer": "https://localhost:3000",
-      "X-Title": "Credit Card Bot",
+      "X-Title": "CardSense AI",
     },
   },
 });

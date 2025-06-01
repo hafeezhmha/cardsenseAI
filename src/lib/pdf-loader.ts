@@ -4,6 +4,10 @@ import { env } from "./config";
 
 export async function getChunkedDocsFromPDF() {
   try {
+    if (!env.PDF_PATH) {
+      console.log("PDF_PATH not defined in environment, skipping PDF loading.");
+      return []; // Or throw an error: throw new Error("PDF_PATH not defined");
+    }
     const loader = new PDFLoader(env.PDF_PATH);
     const docs = await loader.load();
 
