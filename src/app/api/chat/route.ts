@@ -110,6 +110,54 @@ export async function POST(req: NextRequest) {
     return new StreamingTextResponse(stream);
   }
 
+  // Handle introductions before simple greetings or callChain
+  const nameExtractionRegex = /^(?:hi|hello|hey|greetings|hellow|yo|sup)?(?:\s*,?\s*(?:i am|i'm|im|my name is))\s+([a-zA-Z]+(?:\s[a-zA-Z]+)*)(?:\s*!|\s*\.|\s*$)/i;
+  const nameMatch = question.trim().match(nameExtractionRegex);
+
+  if (nameMatch && nameMatch[1]) {
+    const userName = nameMatch[1].trim();
+    // Store this userName implicitly by it being in the messages history for later retrieval by "what's my name"
+    const greetingText = `Hello ${userName}! I'm CardSense AI. How can I help you with your credit card questions today?`;
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(greetingText));
+        controller.close();
+      },
+    });
+    return new StreamingTextResponse(stream);
+  }
+
+  // Handle "what's my name?" type questions
+  const whatsMyNameRegex = /^(?:what(?:\s*'?s|\s+is|s)|tell\s+me)\s+my\s+name(?:\s+again)?\s*\??$/i;
+  if (whatsMyNameRegex.test(question.trim())) {
+    let foundName: string | null = null;
+    // Iterate backwards through user messages to find the last introduction
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        const userMessageContent = messages[i].content;
+        const introNameMatch = userMessageContent.match(nameExtractionRegex);
+        if (introNameMatch && introNameMatch[1]) {
+          foundName = introNameMatch[1].trim();
+          break;
+        }
+      }
+    }
+
+    let responseText = "";
+    if (foundName) {
+      responseText = `You told me your name is ${foundName}! How can I help you further?`;
+    } else {
+      responseText = "You haven't told me your name yet. What should I call you?";
+    }
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(responseText));
+        controller.close();
+      },
+    });
+    return new StreamingTextResponse(stream);
+  }
+
   if (simpleGreetings.includes(normalizedQuestion)) {
     // Return a simple greeting response directly, bypassing the RAG chain
     const greetingText = "Hello there! I'm CardSense AI. How can I help you with your credit card questions today?";
