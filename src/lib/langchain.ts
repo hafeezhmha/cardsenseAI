@@ -99,3 +99,77 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
     });
   }
 }
+
+interface RagJsonResponse {
+  answer: string;
+  sources: Array<{
+    content: string;
+    url: string | null;
+  }>;
+}
+
+export async function callChainAsJson({ question, chatHistory }: callChainArgs): Promise<RagJsonResponse> {
+  try {
+    console.log("callChainAsJson: Sanitizing question...");
+    const sanitizedQuestion = question.trim().replaceAll("\n", " ");
+    console.log(`callChainAsJson: Sanitized question: ${sanitizedQuestion}`);
+
+    console.log("callChainAsJson: Initializing Pinecone client...");
+    const pineconeClient = await getPineconeClient();
+    console.log("callChainAsJson: Pinecone client initialized.");
+
+    console.log("callChainAsJson: Getting vector store...");
+    const vectorStore = await getVectorStore(pineconeClient);
+    console.log("callChainAsJson: Vector store retrieved.");
+    
+    console.log("callChainAsJson: Creating ConversationalRetrievalQAChain...");
+    // Note: Using nonStreamingModel here as we are not streaming the final response to the client in this JSON version.
+    // The original callChain used streamingModel for the main LLM. If your LLM provider charges differently
+    // or has different characteristics for streaming vs non-streaming, you might adjust this.
+    // For simplicity, let's use nonStreamingModel for the main response generation in this JSON variant.
+    const chain = ConversationalRetrievalQAChain.fromLLM(
+      nonStreamingModel, // Changed from streamingModel
+      vectorStore.asRetriever({ k: 2 }) as any, // k: 2 means 2 source documents
+      {
+        qaTemplate: QA_TEMPLATE,
+        questionGeneratorTemplate: STANDALONE_QUESTION_TEMPLATE,
+        returnSourceDocuments: true,
+        questionGeneratorChainOptions: {
+          llm: nonStreamingModel,
+        },
+        // verbose: true, // You can enable this for more detailed logs if needed
+      }
+    );
+    console.log("callChainAsJson: ConversationalRetrievalQAChain created.");
+
+    console.log("callChainAsJson: Calling chain with question and chat history...");
+    const res = await chain.call({
+      question: sanitizedQuestion,
+      chat_history: chatHistory,
+    });
+    console.log("callChainAsJson: Chain call successful. Processing response...");
+
+    const responseText = res.text;
+    let sources: RagJsonResponse['sources'] = [];
+
+    if (res?.sourceDocuments && res.sourceDocuments.length > 0) {
+      // Processing all source documents returned, not just the first one.
+      sources = res.sourceDocuments.map((doc: any) => ({ // Use 'any' for now or define a proper type for sourceDocument
+        content: doc.pageContent,
+        url: doc.metadata?.sourceURL || doc.metadata?.source || null,
+      }));
+      console.log(`callChainAsJson: Processed sources: ${JSON.stringify(sources)}`);
+    }
+
+    return {
+      answer: responseText,
+      sources: sources,
+    };
+
+  } catch (e) {
+    console.error("callChainAsJson: Unhandled error:", e);
+    // Instead of returning a Response, we throw an error that the API route can catch
+    const errorMessage = e instanceof Error ? e.message : "Unknown error in callChainAsJson";
+    throw new Error(`Call chain method (JSON) failed: ${errorMessage}`);
+  }
+}
