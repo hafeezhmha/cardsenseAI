@@ -21,8 +21,8 @@ CardSense AI is a RAG (Retrieval Augmented Generation) application designed to a
 
 1.  **Clone the Repository:**
     ```bash
-    git clone <your-repository-url>
-    cd <your-repository-name>
+    git clone https://github.com/hafeezhmha/cardsenseAI.git
+    cd cardsenseAI
     ```
 
 2.  **Install Dependencies:**
